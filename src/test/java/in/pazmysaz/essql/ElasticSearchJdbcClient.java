@@ -26,7 +26,7 @@ public class ElasticSearchJdbcClient {
 		try {
 			Class.forName("in.pazmysaz.essql.jdbc.ESDriver");
 			String index = "schema_pimkpi";
-			Connection conn = DriverManager.getConnection("jdbc:sql4es://172.18.0.3:9300/"+index+"?cluster.name=es-docker-cluster");
+			Connection conn = DriverManager.getConnection("jdbc:sql4es://casey.store:9300/"+index+"?cluster.name=es-docker-cluster");
 			Statement statement = conn.createStatement();
 			ResultSet query = statement.executeQuery("SELECT * FROM _doc ");
 			ResultSetMetaData rsmd = query.getMetaData();
@@ -52,7 +52,7 @@ public class ElasticSearchJdbcClient {
 		try {
 			Class.forName("in.pazmysaz.essql.jdbc.ESDriver");
 			String index = "schema_pimkpi";
-			Connection conn = DriverManager.getConnection("jdbc:sql4es://172.18.0.3:9300/"+index+"?cluster.name=es-docker-cluster");
+			Connection conn = DriverManager.getConnection("jdbc:sql4es://casey.store:9300/"+index+"?cluster.name=es-docker-cluster");
 			Statement statement = conn.createStatement();
 			ResultSet query = statement.executeQuery("SELECT COUNT(*) as count_ FROM _doc ");
 			ResultSetMetaData rsmd = query.getMetaData();

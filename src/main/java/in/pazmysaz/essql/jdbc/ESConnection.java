@@ -207,12 +207,13 @@ public class ESConnection implements Connection{
 
 	@Override
 	public void commit() throws SQLException {
-		 throw new SQLFeatureNotSupportedException(Utils.getLoggingInfo());
+		
+		 //throw new SQLFeatureNotSupportedException(Utils.getLoggingInfo());
 	}
 
 	@Override
 	public void rollback() throws SQLException {
-		 throw new SQLFeatureNotSupportedException(Utils.getLoggingInfo());
+		 //throw new SQLFeatureNotSupportedException(Utils.getLoggingInfo());
 	}
 
 	@Override

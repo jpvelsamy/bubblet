@@ -91,16 +91,16 @@ public class ESQueryState{
 		Map<String, Map<String, Integer>> esInfo = (Map<String, Map<String, Integer>>)Utils.getObjectProperty(props, Utils.PROP_TABLE_COLUMN_MAP);
 		ParseResult parseResult =  parser.parse(sql, query, maxRowsRS, this.statement.getConnection().getClientInfo(), esInfo);
 		List<String> sqlIndices = new ArrayList<>();
+		
 		//List<String> types = new ArrayList<>();
-		for (QuerySource source : parseResult.getSources()) {
-		    if (source.getIndex() != null) {
-                sqlIndices.add(source.getIndex());
-            }
-            //types.add(source.getSource());
-        }
-        if (sqlIndices.isEmpty()) {
-            sqlIndices.addAll(Arrays.asList(indices));
-        }
+		//Jana - I am commenting this code
+		//addIndicesLegacy(parseResult, sqlIndices, indices);
+        String[] types = new String[parseResult.getSources().size()];
+		for(int i=0; i<parseResult.getSources().size(); i++) types[i] = parseResult.getSources().get(i).getSource();
+		for (int i = 0; i < types.length; i++) {
+			sqlIndices.add(types[i]);
+		}
+		
         this.request = client.prepareSearch(sqlIndices.toArray(new String[0]));
 
 		buildQuery(request, parseResult);
@@ -118,6 +118,18 @@ public class ESQueryState{
 			}
 		}*/
 	}
+
+	private void addIndicesLegacy(ParseResult parseResult, List<String> sqlIndices, String... indices) {
+		for (QuerySource source : parseResult.getSources()) {
+		    if (source.getIndex() != null) {
+                sqlIndices.add(source.getIndex());
+            }
+            //types.add(source.getSource());
+        }
+        if (sqlIndices.isEmpty()) {
+            sqlIndices.addAll(Arrays.asList(indices));
+        }
+	}
 	
 	/**
 	 * Builds the Elasticsearch query object based on the parsed information from the SQL query
@@ -127,7 +139,8 @@ public class ESQueryState{
 	private void buildQuery(SearchRequestBuilder searchReq, ParseResult info) {
 		String[] types = new String[info.getSources().size()];
 		for(int i=0; i<info.getSources().size(); i++) types[i] = info.getSources().get(i).getSource(); 
-		SearchRequestBuilder req = searchReq.setTypes(types);
+		//SearchRequestBuilder req = searchReq.setTypes(types);
+		SearchRequestBuilder req = searchReq;
 		
 		// add filters and aggregations
 		if(info.getAggregation() != null){

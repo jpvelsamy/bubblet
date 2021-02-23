@@ -76,7 +76,8 @@ public class ESUpdateState {
 	private List<String> bulkList = new ArrayList<String>();
 	private ESQueryState queryState;
 	private Statement statement;
-	private Pattern updateRegex = Pattern.compile("UPDATE\\s+(\\w+)\\.?(\\w+)?\\s+SET\\s+(.+)\\s+WHERE\\s+(.+)", Pattern.CASE_INSENSITIVE);
+	//private Pattern updateRegex = Pattern.compile("UPDATE\\s+(\\w+)\\.?(\\w+)?\\s+SET\\s+(.+)\\s+WHERE\\s+(.+)", Pattern.CASE_INSENSITIVE);
+	private Pattern updateRegex = Pattern.compile("UPDATE\\s+(\\w+)?\\s+SET\\s+(.+)\\s+WHERE\\s+(.+)", Pattern.CASE_INSENSITIVE);
 	
 	public ESUpdateState(Client client, Statement statement) throws SQLException{
 		this.client = client;
@@ -167,8 +168,8 @@ public class ESUpdateState {
 	private int insertFromSelect(String sql, Insert insert, String index, int maxRequestsPerBulk) throws SQLException {
 		queryState.buildRequest(sql, insert.getQuery().getQueryBody(), index);
 		String[] indexAndType = this.getIndexAndType(insert.getTarget().toString(), sql, "into\\s+", "\\s+select", index);
-		index = indexAndType[0];
-		String type = indexAndType[1];
+		index = indexAndType[1];
+		//String type = indexAndType[1];
 		
 		// execute query using nested resultsets
 		ResultSet rs = queryState.execute(false);
@@ -209,7 +210,7 @@ public class ESUpdateState {
 					nested.put(label, value);
 				}
 				IndexRequestBuilder indexReq = client.prepareIndex().setIndex(index)
-						.setType(type)
+						//.setType(type)
 						.setSource(fieldValues);
 				indexReqs.add(indexReq);
 				if(indexReqs.size() >= maxRequestsPerBulk){
@@ -241,8 +242,8 @@ public class ESUpdateState {
 		if(heading.hasLabel("_index") || heading.hasLabel("_type")) throw new SQLException("Not possible to set _index and _type fields");
 
 		String[] indexAndType = this.getIndexAndType(insert.getTarget().toString(), sql, "into\\s+", "\\s+values", index);
-		index = indexAndType[0];
-		String type = indexAndType[1];
+		index = indexAndType[1];
+		//String type = indexAndType[1];
 		
 		if(values.size() % heading.getColumnCount() != 0) throw new SQLException("Number of columns does not match number of values for one of the inserts");
 		
@@ -280,7 +281,8 @@ public class ESUpdateState {
 			}
 			
 			// create index request
-			IndexRequestBuilder indexReq = client.prepareIndex().setIndex(index).setType(type);
+			IndexRequestBuilder indexReq = client.prepareIndex().setIndex(index);
+					//.setType(type);
 			if(id != null) indexReq.setId(id);
 			indexReq.setSource(fieldValues);
 			indexReqs.add(indexReq);
@@ -648,22 +650,25 @@ public class ESUpdateState {
 		if(!matcher.find()) throw new SQLException("Unable to parse UPDATE statement");
 		
 		// get index and type to update
-		String index = statement.getConnection().getSchema();
-		String type = matcher.group(1);
+		//String index = statement.getConnection().getSchema();
+		String type=matcher.group(1);
+		/*String type = matcher.group(1);
 		if(matcher.group(2) != null){
 			index = type;
 			type = matcher.group(2);
-		}
+		}*/
 		
 		// get fields and values to update
 		try{
 			Map<String, Object> fieldValues = new HashMap<String, Object>();
 			SqlParser parser = new SqlParser();
-			String[] parts = matcher.group(3).replaceAll(",\\s*([\"|\\w|\\.]+\\s*=)", "<-SPLIT->$1").split("<-SPLIT->");
+			//String[] parts = matcher.group(3).replaceAll(",\\s*([\"|\\w|\\.]+\\s*=)", "<-SPLIT->$1").split("<-SPLIT->");
+			String[] parts = matcher.group(2).replaceAll(",\\s*([\"|\\w|\\.]+\\s*=)", "<-SPLIT->$1").split("<-SPLIT->");
 			for(String p : parts){
 				ComparisonExpression comparison = (ComparisonExpression) parser.createExpression(p);
 				String field = comparison.getLeft().toString().replaceAll("\"", "");
-				field = Heading.findOriginal(matcher.group(3), field, "", "\\s*=");
+				//field = Heading.findOriginal(matcher.group(3), field, "", "\\s*=");
+				field = Heading.findOriginal(matcher.group(2), field, "", "\\s*=");
 				Object value = getLiteralValue(comparison.getRight());
 				
 				if(field.indexOf('.') == -1) {
@@ -687,9 +692,11 @@ public class ESUpdateState {
 			
 			// get ID's for documents to be updated
 		
-			String select = "SELECT _id FROM "+type+" WHERE "+matcher.group(4);
+			//String select = "SELECT _id FROM "+type+" WHERE "+matcher.group(4);
+			String select = "SELECT _id FROM "+type+" WHERE "+matcher.group(3);
 			Query query = (Query)new SqlParser().createStatement(select);
-			this.queryState.buildRequest(select, query.getQueryBody(), index);
+			//this.queryState.buildRequest(select, query.getQueryBody(), index);
+			this.queryState.buildRequest(select, query.getQueryBody(), type);
 			ResultSet rs = this.queryState.execute();
 			
 			// execute updates in batch mode based on id's returned
@@ -700,7 +707,8 @@ public class ESUpdateState {
 				while(rs.next()){
 					String id = rs.getString(1);
 					indexReqs.add(
-						client.prepareUpdate(index, type, id).setDoc(fieldValues)
+						//client.prepareUpdate(index, type, id).setDoc(fieldValues)
+							client.prepareUpdate(type, null, id).setDoc(fieldValues)
 					);
 					if(indexReqs.size() >= maxRequestsPerBulk){
 						updateCount += this.execute(indexReqs, maxRequestsPerBulk);
