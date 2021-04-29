@@ -55,6 +55,7 @@ public class ESQueryState{
 	private boolean splitRS;
 	private int fetchSize;
 	private int maxRowsRS = Integer.MAX_VALUE;
+	private Map<String, Map<String, Integer>> esInfo;
 	
 
 	/**
@@ -88,7 +89,7 @@ public class ESQueryState{
 		}
 		// ToDo: Check indices after parse
 
-		Map<String, Map<String, Integer>> esInfo = (Map<String, Map<String, Integer>>)Utils.getObjectProperty(props, Utils.PROP_TABLE_COLUMN_MAP);
+		esInfo = (Map<String, Map<String, Integer>>)Utils.getObjectProperty(props, Utils.PROP_TABLE_COLUMN_MAP);
 		ParseResult parseResult =  parser.parse(sql, query, maxRowsRS, this.statement.getConnection().getClientInfo(), esInfo);
 		List<String> sqlIndices = new ArrayList<>();
 		
@@ -117,6 +118,10 @@ public class ESQueryState{
 						Utils.getIntProp(props, Utils.PROP_FRAGMENT_NUMBER, 1));
 			}
 		}*/
+	}
+
+	public Map<String, Map<String, Integer>> getEsInfo() {
+		return esInfo;
 	}
 
 	private void addIndicesLegacy(ParseResult parseResult, List<String> sqlIndices, String... indices) {

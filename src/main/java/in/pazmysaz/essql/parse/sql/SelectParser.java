@@ -1,10 +1,14 @@
 package in.pazmysaz.essql.parse.sql;
 
+import java.util.Collection;
+import java.util.Map;
+
 import com.facebook.presto.sql.tree.*;
 import com.facebook.presto.sql.tree.ArithmeticUnaryExpression.Sign;
 
 import in.pazmysaz.essql.ESQueryState;
 import in.pazmysaz.essql.QueryState;
+import in.pazmysaz.essql.model.BasicQueryState;
 import in.pazmysaz.essql.model.Column;
 import in.pazmysaz.essql.model.Heading;
 import in.pazmysaz.essql.model.QuerySource;
@@ -174,23 +178,44 @@ public class SelectParser extends AstVisitor<Object, QueryState>{
 	 * @return
 	 */
 	public static Column createColumn(String name, Operation op, QueryState state, String prefix, String suffix){
+		
 		if(!name.equals("*")){
 			name = Heading.findOriginal(state.originalSql(), name, prefix, suffix);			
 		}
 		if(name.contains(".")){
 			String head = name.split("\\.")[0];
 			for(QuerySource tr : state.getSources()){
+				
 				if(tr.getAlias() != null && head.equals(tr.getAlias())){
 					if(op != null) return new Column(name.substring(name.indexOf('.')+1), op).setTable(tr.getSource(), tr.getAlias());
-					return new Column(name.substring(name.indexOf('.')+1)).setTable(tr.getSource(), tr.getAlias());
+					return new Column(name.substring(name.indexOf('.')+1), Operation.NONE).setTable(tr.getSource(), tr.getAlias());
 				}else if (head.equals(tr.getSource())){
 					if(op != null) return new Column(name.substring(name.indexOf('.')+1), op).setTable(tr.getSource(), tr.getAlias());
-					return new Column(name.substring(name.indexOf('.')+1)).setTable(tr.getSource(), tr.getAlias());
+					return new Column(name.substring(name.indexOf('.')+1), Operation.NONE).setTable(tr.getSource(), tr.getAlias());
 				}
 			}
 		}
-		if(op != null) return new Column(name, op);
-		return new Column(name);
+		if(op != null) 
+		{			
+			Column column= new Column(name, op);
+			return column;
+		}
+		else
+		{
+			Map<String, Integer> typeCollxn = null;
+			if(state instanceof BasicQueryState) {
+				Map<String, Map<String, Integer>> esInfo = ((BasicQueryState) state).getEsInfo();			
+				if(!esInfo.isEmpty())
+				typeCollxn = esInfo.values().iterator().next();
+			}
+			Column column =  new Column(name,Operation.NONE);
+			if(typeCollxn!=null && !typeCollxn.isEmpty()) {
+				Integer sqlType = typeCollxn.get(name);
+				column.setSqlType(sqlType);
+			}
+			return column;
+		}			
+		
 	}
 	
 }

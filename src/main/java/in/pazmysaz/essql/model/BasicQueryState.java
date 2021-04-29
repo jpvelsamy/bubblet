@@ -4,6 +4,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import in.pazmysaz.essql.QueryState;
@@ -25,6 +26,7 @@ public class BasicQueryState implements QueryState {
 	private SQLException exception = null;
 	private HashMap<String, Object> kvStore = new HashMap<String, Object>();
 	private List<QuerySource> relations = new ArrayList<QuerySource>();
+	private Map<String, Map<String, Integer>> esInfo;
 
 	public BasicQueryState(String sql, Heading heading, Properties props){
 		this.heading = heading;
@@ -108,6 +110,11 @@ public class BasicQueryState implements QueryState {
 			if(col.getOp() == Operation.COUNT_DISTINCT) return true;
 		}
 		return false;
+	}
+	
+	public Map<String, Map<String, Integer>> getEsInfo() {
+		esInfo = (Map<String, Map<String, Integer>>)Utils.getObjectProperty(props, Utils.PROP_TABLE_COLUMN_MAP);
+		return esInfo;
 	}
 
 }
