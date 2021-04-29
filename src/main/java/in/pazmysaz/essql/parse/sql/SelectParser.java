@@ -211,6 +211,7 @@ public class SelectParser extends AstVisitor<Object, QueryState>{
 			Column column =  new Column(name,Operation.NONE);
 			if(typeCollxn!=null && !typeCollxn.isEmpty()) {
 				Integer sqlType = typeCollxn.get(name);
+				if(sqlType!=null)
 				column.setSqlType(sqlType);
 			}
 			return column;
