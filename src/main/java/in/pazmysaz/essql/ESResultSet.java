@@ -49,27 +49,27 @@ public class ESResultSet implements ResultSet {
 	private long offset = 0;
 	private int defaultRowLength = 1000;
 
-	public ESResultSet(ESQueryState req){
+	public ESResultSet(ESQueryState req) {
 		this.heading = req.getHeading();
 		this.req = req;
 		this.statement = req.getStatement();
 		this.total = 0;
 		this.defaultRowLength = req.getIntProp(Utils.PROP_DEFAULT_ROW_LENGTH, 1000);
 	}
-	
-	public ESResultSet(Heading heading, int total, int defaultRowLength){
+
+	public ESResultSet(Heading heading, int total, int defaultRowLength) {
 		this.heading = heading;
 		this.total = total;
 		this.defaultRowLength = defaultRowLength;
 	}
 
-	public ESResultSet(Statement statement, Heading heading, int total, int defaultRowLength){
+	public ESResultSet(Statement statement, Heading heading, int total, int defaultRowLength) {
 		this.heading = heading;
 		this.statement = statement;
 		this.total = total;
 		this.defaultRowLength = defaultRowLength;
 	}
-	
+
 	public ESResultSet(ESQueryState req, long total) {
 		this.heading = req.getHeading();
 		this.req = req;
@@ -77,115 +77,123 @@ public class ESResultSet implements ResultSet {
 		this.total = total;
 		this.defaultRowLength = req.getIntProp(Utils.PROP_DEFAULT_ROW_LENGTH, 1000);
 	}
-	
-	public ESResultSet(ESQueryState req, long offset, long total){
+
+	public ESResultSet(ESQueryState req, long offset, long total) {
 		this(req, total);
 		this.offset = offset;
 	}
-	
-	public Heading getHeading(){
+
+	public Heading getHeading() {
 		return this.heading;
 	}
-	
-	public String toString(){
+
+	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		for(Column h : heading.columns()){
-			if(h.isVisible() ) sb.append(h.getLabel()+", ");
+		for (Column h : heading.columns()) {
+			if (h.isVisible())
+				sb.append(h.getLabel() + ", ");
 		}
 		sb.append("\r\n");
-		for(List<Object> row : rows){
-			for(Column h : heading.columns()){
+		for (List<Object> row : rows) {
+			for (Column h : heading.columns()) {
 				Object o = h.getIndex() >= row.size() ? null : row.get(h.getIndex());
-				if(h.isVisible() ) sb.append((o instanceof ResultSet ? "\r\n" : "")+o+(o instanceof ResultSet ? "\r\n" : ", "));
+				if (h.isVisible())
+					sb.append((o instanceof ResultSet ? "\r\n" : "") + o + (o instanceof ResultSet ? "\r\n" : ", "));
 			}
 			sb.append("\r\n");
 		}
 		return sb.toString().trim();
 	}
-	
+
 	/**
-	 * Creates a new row for this resultset with proper initial capacity (if known) and initialized with NULL's. 
-	 * The row still needs to be added to the resultset!
+	 * Creates a new row for this resultset with proper initial capacity (if known)
+	 * and initialized with NULL's. The row still needs to be added to the
+	 * resultset!
+	 * 
 	 * @return
 	 */
-	public List<Object> getNewRow(){
+	public List<Object> getNewRow() {
 		List<Object> row = Arrays.asList(new Object[defaultRowLength]);
 		return row;
 	}
-	
+
 	public void add(List<Object> row) {
 		rows.add(row.subList(0, heading.getColumnCount()));
-		if(rows.size() > total) total = rows.size(); // can happen when rows are being exploded
+		if (rows.size() > total)
+			total = rows.size(); // can happen when rows are being exploded
 	}
-	
-	public int rowCount(){
+
+	public int rowCount() {
 		return rows.size();
 	}
-	
-	public List<Object> getRow(int index){
+
+	public List<Object> getRow(int index) {
 		return this.rows.get(index);
 	}
-	
-	public void orderBy(List<OrderBy> order){
+
+	public void orderBy(List<OrderBy> order) {
 		Collections.sort(rows, new ResultRowComparator(order));
 	}
-	
-	public int getNrRows(){
+
+	public int getNrRows() {
 		return rows.size();
 	}
-	
-	public void setTotal(long total){
+
+	public void setTotal(long total) {
 		this.total = total;
 	}
-	
-	public long getTotal(){
+
+	public long getTotal() {
 		return total;
 	}
-	
-	public long getOffset(){
+
+	public long getOffset() {
 		return this.offset;
 	}
-	
-	public void limit(int limit){
-		if(rows.size() > limit) rows = rows.subList(0, limit);
+
+	public void limit(int limit) {
+		if (rows.size() > limit)
+			rows = rows.subList(0, limit);
 	}
-	
+
 	/**
 	 * Removes rows that do not match the provided Having clause
+	 * 
 	 * @param having
 	 * @throws SQLException
 	 */
-	public void filterHaving(IComparison having) throws SQLException{
-		for(int i=0; i<rows.size(); i++){
-			if(!having.evaluate(rows.get(i))){
+	public void filterHaving(IComparison having) throws SQLException {
+		for (int i = 0; i < rows.size(); i++) {
+			if (!having.evaluate(rows.get(i))) {
 				rows.remove(i);
 				i--;
 			}
 		}
 		this.total = rows.size();
 	}
-	
+
 	/**
 	 * Executes any computations specified on columns
 	 */
-	public void executeComputations(){
+	public void executeComputations() {
 		boolean calculationFound = false;
-		for(Column column : heading.columns()) 
-			if(column.hasCalculation()){
+		for (Column column : heading.columns())
+			if (column.hasCalculation()) {
 				calculationFound = true;
 				break;
-		}
-		if(!calculationFound) return;
-		for(int i=0; i<rows.size(); i++){
-			for(Column column : heading.columns()){
-				if(column.hasCalculation()) {
+			}
+		if (!calculationFound)
+			return;
+		for (int i = 0; i < rows.size(); i++) {
+			for (Column column : heading.columns()) {
+				if (column.hasCalculation()) {
 					Number value = column.getCalculation().evaluate(this, i);
 					rows.get(i).set(column.getIndex(), value);
 				}
 			}
 		}
 	}
-	
+
 	@Override
 	public <T> T unwrap(Class<T> iface) throws SQLException {
 		throw new SQLFeatureNotSupportedException();
@@ -198,15 +206,16 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public boolean next() throws SQLException {
-		if(cursor + 1 < rows.size() && offset + cursor + 1 < total){
-			cursor ++;
+		if (cursor + 1 < rows.size() && offset + cursor + 1 < total) {
+			cursor++;
 			return true;
 		}
 		return false;
 	}
 
 	@Override
-	public void close() throws SQLException {	}
+	public void close() throws SQLException {
+	}
 
 	@Override
 	public boolean wasNull() throws SQLException {
@@ -214,175 +223,226 @@ public class ESResultSet implements ResultSet {
 		return false;
 	}
 
-	private Object getForColumn(int columnIdx) throws SQLException{
+	private Object getForColumn(int columnIdx) throws SQLException {
 		Integer idx = heading.getIndexForColumn(columnIdx);
-		if(idx >= rows.get(cursor).size()) return null;
+		if (idx >= rows.get(cursor).size())
+			return null;
 		return rows.get(cursor).get(idx);
 	}
-	
+
 	@Override
 	public String getString(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
-		try{
+		if (value == null)
+			return null;
+		try {
 			// return (String)value; // strict check on the type
 			return value.toString();
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type String but is "+value.getClass());
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type String but is " + value.getClass());
 		}
 	}
 
 	@Override
 	public boolean getBoolean(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return false;
-		try{
+		if (value == null)
+			return false;
+		try {
 			int type = heading.getColumn(heading.getIndexForColumn(columnIndex)).getSqlType();
-			switch(type){
-				case Types.BIGINT : return ((Long)value).longValue() == 1; 
-				case Types.INTEGER : return ((Integer)value).intValue() == 1; 
-				case Types.DOUBLE : return ((Double)value).doubleValue() == 1; 
-				case Types.FLOAT : return ((Float)value).floatValue() == 1; 
-				case Types.BIT : return (Boolean)value; 
-				case Types.BOOLEAN : return (Boolean)value; 
-				case Types.CHAR : return Boolean.parseBoolean(""+((char)value));
-				case Types.VARCHAR : return Boolean.parseBoolean(value.toString());
-				default : return false;
+			switch (type) {
+			case Types.BIGINT:
+				return ((Long) value).longValue() == 1;
+			case Types.INTEGER:
+				return ((Integer) value).intValue() == 1;
+			case Types.DOUBLE:
+				return ((Double) value).doubleValue() == 1;
+			case Types.FLOAT:
+				return ((Float) value).floatValue() == 1;
+			case Types.BIT:
+				return (Boolean) value;
+			case Types.BOOLEAN:
+				return (Boolean) value;
+			case Types.CHAR:
+				return Boolean.parseBoolean("" + ((char) value));
+			case Types.VARCHAR:
+				return Boolean.parseBoolean(value.toString());
+			default:
+				return false;
 			}
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type boolean but is "+value.getClass());
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type boolean but is " + value.getClass());
 		}
 	}
 
 	@Override
 	public byte getByte(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return 0;
-		try{
-			return (byte)value;
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type byte but is "+value.getClass());
+		if (value == null)
+			return 0;
+		try {
+			return (byte) value;
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type byte but is " + value.getClass());
 		}
 	}
 
 	@Override
 	public short getShort(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return 0;
-		try{
-			return ((Number)value).shortValue();
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type short but is "+value.getClass());
+		if (value == null)
+			return 0;
+		try {
+			return ((Number) value).shortValue();
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type short but is " + value.getClass());
 		}
 	}
 
 	@Override
 	public int getInt(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return 0;
-		try{
-			return  ((Number)value).intValue();
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type int but is "+value.getClass());
+		if (value == null)
+			return 0;
+		try {
+			return ((Number) value).intValue();
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type int but is " + value.getClass());
 		}
 	}
 
 	@Override
 	public long getLong(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return 0;
-		try{
-			return  ((Number)value).longValue();
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type Long but is "+value.getClass());
+		if (value == null)
+			return 0;
+		try {
+			return ((Number) value).longValue();
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type Long but is " + value.getClass());
 		}
 	}
 
 	@Override
 	public float getFloat(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return 0;
-		try{
-			return  ((Number)value).floatValue();
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type Float but is "+value.getClass());
+		if (value == null)
+			return 0;
+		try {
+			return ((Number) value).floatValue();
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type Float but is " + value.getClass());
 		}
 	}
 
 	@Override
 	public double getDouble(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return 0;
-		try{
-			return  ((Number)value).doubleValue();
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type Double but is "+value.getClass());
+		if (value == null)
+			return 0;
+		else {
+		try {
+			Number number = (Number) value;
+			if (number != null) {
+				double doubleValue = number.doubleValue();
+				return doubleValue;
+			} 
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type Double but is " + value.getClass());
+		}
+		return 0;
 		}
 	}
 
 	@Override
 	public BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
-		try{
-			return (BigDecimal)value;
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type BigDecimal but is "+value.getClass());
+		if (value == null)
+			return null;
+		try {
+			return (BigDecimal) value;
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type BigDecimal but is " + value.getClass());
 		}
 	}
 
 	@Override
 	public byte[] getBytes(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
-		try{
-			return (byte[])value;
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type Byte[] but is "+value.getClass());
+		if (value == null)
+			return null;
+		try {
+			return (byte[]) value;
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type Byte[] but is " + value.getClass());
 		}
 	}
-	
-	private long getTimeFromString(String value) throws SQLException{
-		try{
+
+	private long getTimeFromString(String value) throws SQLException {
+		try {
 			return DateTime.parse(value).getMillis();
-		}catch(Exception e){
-			throw new SQLException("Unable to parse Date from '"+value+"' : "+e.getMessage());
+		} catch (Exception e) {
+			throw new SQLException("Unable to parse Date from '" + value + "' : " + e.getMessage());
 		}
 	}
 
 	@Override
 	public Date getDate(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
+		if (value == null)
+			return null;
 		int type = heading.getColumn(heading.getIndexForColumn(columnIndex)).getSqlType();
-		if(type == Types.DATE){
-			if(value instanceof String) return new Date(getTimeFromString((String)value));
-			if(value instanceof Long) return new Date((Long)value);
-			if(value instanceof Double) return new Date(((Double)value).longValue());
-			return new Date(((java.util.Date)value).getTime());
-		}else throw new SQLException("Value in column '"+columnIndex+"' is not a Date but is "+value.getClass().getSimpleName());
+		if (type == Types.DATE) {
+			if (value instanceof String)
+				return new Date(getTimeFromString((String) value));
+			if (value instanceof Long)
+				return new Date((Long) value);
+			if (value instanceof Double)
+				return new Date(((Double) value).longValue());
+			return new Date(((java.util.Date) value).getTime());
+		} else
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not a Date but is " + value.getClass().getSimpleName());
 	}
 
 	@Override
 	public Time getTime(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
+		if (value == null)
+			return null;
 		int type = heading.getColumn(heading.getIndexForColumn(columnIndex)).getSqlType();
-		if(type == Types.TIMESTAMP){
-			if(value instanceof String) return new Time(getTimeFromString((String)value));
-			return new Time(((java.util.Date)value).getTime());
-		}else throw new SQLException("Value in column '"+columnIndex+"' is not a Time but is "+value.getClass().getSimpleName());
+		if (type == Types.TIMESTAMP) {
+			if (value instanceof String)
+				return new Time(getTimeFromString((String) value));
+			return new Time(((java.util.Date) value).getTime());
+		} else
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not a Time but is " + value.getClass().getSimpleName());
 	}
 
 	@Override
 	public Timestamp getTimestamp(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
+		if (value == null)
+			return null;
 		int type = heading.getColumn(heading.getIndexForColumn(columnIndex)).getSqlType();
-		if(type == Types.DATE || type == Types.TIMESTAMP){
-			if(value instanceof String) return new Timestamp(getTimeFromString((String)value));
-			return new Timestamp(((java.util.Date)value).getTime());
-		}else throw new SQLException("Value in column '"+columnIndex+"' is not a Timestamp but is "+value.getClass().getSimpleName());
+		if (type == Types.DATE || type == Types.TIMESTAMP) {
+			if (value instanceof String)
+				return new Timestamp(getTimeFromString((String) value));
+			return new Timestamp(((java.util.Date) value).getTime());
+		} else
+			throw new SQLException("Value in column '" + columnIndex + "' is not a Timestamp but is "
+					+ value.getClass().getSimpleName());
 	}
 
 	@Override
@@ -498,29 +558,24 @@ public class ESResultSet implements ResultSet {
 	@Override
 	public ResultSetMetaData getMetaData() throws SQLException {
 		List<Column> visibleCols = new ArrayList<Column>();
-		for(Column col : heading.columns())
-			if(col.isVisible()) {
+		for (Column col : heading.columns())
+			if (col.isVisible()) {
 				visibleCols.add(col);
 				/*
-				if(col.getSqlType() == Types.OTHER){
-					for(int i=0; i<Math.min(100, rows.size()); i++){
-						Object value = rows.get(i).get(col.getIndex());
-						if(value != null){
-							col.setSqlType( Heading.getTypeIdForObject(value) );
-							break;
-						}
-					}
-				}*/
+				 * if(col.getSqlType() == Types.OTHER){ for(int i=0; i<Math.min(100,
+				 * rows.size()); i++){ Object value = rows.get(i).get(col.getIndex()); if(value
+				 * != null){ col.setSqlType( Heading.getTypeIdForObject(value) ); break; } } }
+				 */
 			}
 		return new ESResultSetMetaData(visibleCols, "", "");
 	}
 
 	@Override
 	public Object getObject(int columnIndex) throws SQLException {
-		try{
+		try {
 			return getForColumn(columnIndex);
-		}catch(Exception e){
-			throw new SQLException("Unable for get value for column "+columnIndex);
+		} catch (Exception e) {
+			throw new SQLException("Unable for get value for column " + columnIndex);
 		}
 	}
 
@@ -531,18 +586,21 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public int findColumn(String columnLabel) throws SQLException {
-		// adjust real index of the column to the JDBC standard one (starting at 1 instead of 0)
+		// adjust real index of the column to the JDBC standard one (starting at 1
+		// instead of 0)
 		return heading.getJDBCColumnNr(columnLabel);
 	}
 
 	@Override
 	public Reader getCharacterStream(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
-		try{
-			return new StringReader((String)value);
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type String but is "+value.getClass());
+		if (value == null)
+			return null;
+		try {
+			return new StringReader((String) value);
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type String but is " + value.getClass());
 		}
 	}
 
@@ -554,11 +612,13 @@ public class ESResultSet implements ResultSet {
 	@Override
 	public BigDecimal getBigDecimal(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
-		try{
-			return (BigDecimal)value;
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type BigDecimal but is "+value.getClass());
+		if (value == null)
+			return null;
+		try {
+			return (BigDecimal) value;
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type BigDecimal but is " + value.getClass());
 		}
 	}
 
@@ -584,7 +644,7 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public boolean isLast() throws SQLException {
-		return cursor == total-1 && cursor > -1;
+		return cursor == total - 1 && cursor > -1;
 	}
 
 	@Override
@@ -594,7 +654,7 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public void afterLast() throws SQLException {
-		cursor = (int)total;
+		cursor = (int) total;
 	}
 
 	@Override
@@ -616,7 +676,7 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public boolean absolute(int row) throws SQLException {
-		if(row >=0 && row < rows.size()){
+		if (row >= 0 && row < rows.size()) {
 			cursor = row;
 			return true;
 		}
@@ -626,7 +686,7 @@ public class ESResultSet implements ResultSet {
 	@Override
 	public boolean relative(int rows) throws SQLException {
 		int newRow = cursor + rows;
-		if(newRow >=0 && newRow < this.rows.size()){
+		if (newRow >= 0 && newRow < this.rows.size()) {
 			cursor = newRow;
 			return true;
 		}
@@ -635,7 +695,7 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public boolean previous() throws SQLException {
-		if(cursor - 1 > -1){
+		if (cursor - 1 > -1) {
 			cursor--;
 			return true;
 		}
@@ -684,17 +744,17 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public boolean rowInserted() throws SQLException {
-		throw new SQLFeatureNotSupportedException();	
+		throw new SQLFeatureNotSupportedException();
 	}
 
 	@Override
 	public boolean rowDeleted() throws SQLException {
-		throw new SQLFeatureNotSupportedException();	
+		throw new SQLFeatureNotSupportedException();
 	}
 
 	@Override
 	public void updateNull(int columnIndex) throws SQLException {
-		throw new SQLFeatureNotSupportedException();		
+		throw new SQLFeatureNotSupportedException();
 	}
 
 	@Override
@@ -709,7 +769,7 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public void updateShort(int columnIndex, short x) throws SQLException {
-		throw new SQLFeatureNotSupportedException();		
+		throw new SQLFeatureNotSupportedException();
 	}
 
 	@Override
@@ -729,22 +789,22 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public void updateDouble(int columnIndex, double x) throws SQLException {
-		throw new SQLFeatureNotSupportedException();	
+		throw new SQLFeatureNotSupportedException();
 	}
 
 	@Override
 	public void updateBigDecimal(int columnIndex, BigDecimal x) throws SQLException {
-		throw new SQLFeatureNotSupportedException();		
+		throw new SQLFeatureNotSupportedException();
 	}
 
 	@Override
 	public void updateString(int columnIndex, String x) throws SQLException {
-		throw new SQLFeatureNotSupportedException();		
+		throw new SQLFeatureNotSupportedException();
 	}
 
 	@Override
 	public void updateBytes(int columnIndex, byte[] x) throws SQLException {
-		throw new SQLFeatureNotSupportedException();		
+		throw new SQLFeatureNotSupportedException();
 	}
 
 	@Override
@@ -759,7 +819,7 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public void updateTimestamp(int columnIndex, Timestamp x) throws SQLException {
-		throw new SQLFeatureNotSupportedException();	
+		throw new SQLFeatureNotSupportedException();
 	}
 
 	@Override
@@ -824,7 +884,7 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public void updateDouble(String columnLabel, double x) throws SQLException {
-		throw new SQLFeatureNotSupportedException();	
+		throw new SQLFeatureNotSupportedException();
 	}
 
 	@Override
@@ -879,7 +939,7 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public void updateObject(String columnLabel, Object x) throws SQLException {
-		throw new SQLFeatureNotSupportedException();	
+		throw new SQLFeatureNotSupportedException();
 	}
 
 	@Override
@@ -922,7 +982,7 @@ public class ESResultSet implements ResultSet {
 		if (req != null) {
 			return req.getStatement();
 		} else {
-			//ToDO:
+			// ToDO:
 			return this.statement;
 		}
 	}
@@ -930,13 +990,15 @@ public class ESResultSet implements ResultSet {
 	@Override
 	public Object getObject(int columnIndex, Map<String, Class<?>> map) throws SQLException {
 		Object res = getForColumn(columnIndex);
-		if(res == null) return null;
-		if(map.containsKey(res.getClass().getName())) try {
-			Class<?> clas = map.get(res.getClass().getName());
-			return clas.cast(res);
-		}catch(Exception e){
-			throw new SQLException("Unable to fetch and cast object for column '"+columnIndex+"'", e);
-		}
+		if (res == null)
+			return null;
+		if (map.containsKey(res.getClass().getName()))
+			try {
+				Class<?> clas = map.get(res.getClass().getName());
+				return clas.cast(res);
+			} catch (Exception e) {
+				throw new SQLException("Unable to fetch and cast object for column '" + columnIndex + "'", e);
+			}
 		return null;
 	}
 
@@ -958,24 +1020,28 @@ public class ESResultSet implements ResultSet {
 	@Override
 	public Array getArray(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
-		try{
-			return (Array)value;
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type Array but is "+value.getClass());
+		if (value == null)
+			return null;
+		try {
+			return (Array) value;
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type Array but is " + value.getClass());
 		}
 	}
 
 	@Override
 	public Object getObject(String columnLabel, Map<String, Class<?>> map) throws SQLException {
 		Object res = getObject(findColumn(columnLabel));
-		if(res == null) return null;
-		if(map.containsKey(res.getClass().getName())) try {
-			Class<?> clas = map.get(res.getClass().getName());
-			return clas.cast(res);
-		}catch(Exception e){
-			throw new SQLException("Unable to fetch and cast object for column '"+columnLabel+"'", e);
-		}
+		if (res == null)
+			return null;
+		if (map.containsKey(res.getClass().getName()))
+			try {
+				Class<?> clas = map.get(res.getClass().getName());
+				return clas.cast(res);
+			} catch (Exception e) {
+				throw new SQLException("Unable to fetch and cast object for column '" + columnLabel + "'", e);
+			}
 		return null;
 	}
 
@@ -1039,11 +1105,13 @@ public class ESResultSet implements ResultSet {
 	@Override
 	public URL getURL(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
-		try{
-			return new URL((String)value);
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type URL but is "+value.getClass());
+		if (value == null)
+			return null;
+		try {
+			return new URL((String) value);
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type URL but is " + value.getClass());
 		}
 	}
 
@@ -1180,11 +1248,13 @@ public class ESResultSet implements ResultSet {
 	@Override
 	public String getNString(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
-		try{
-			return (String)value;
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type String but is "+value.getClass());
+		if (value == null)
+			return null;
+		try {
+			return (String) value;
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type String but is " + value.getClass());
 		}
 	}
 
@@ -1196,11 +1266,13 @@ public class ESResultSet implements ResultSet {
 	@Override
 	public Reader getNCharacterStream(int columnIndex) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
-		try{
-			return new StringReader((String)value);
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type String but is "+value.getClass());
+		if (value == null)
+			return null;
+		try {
+			return new StringReader((String) value);
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type String but is " + value.getClass());
 		}
 	}
 
@@ -1211,7 +1283,7 @@ public class ESResultSet implements ResultSet {
 
 	@Override
 	public void updateNCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
-		throw new SQLFeatureNotSupportedException();	
+		throw new SQLFeatureNotSupportedException();
 	}
 
 	@Override
@@ -1352,11 +1424,13 @@ public class ESResultSet implements ResultSet {
 	@Override
 	public <T> T getObject(int columnIndex, Class<T> type) throws SQLException {
 		Object value = getForColumn(columnIndex);
-		if(value == null) return null;
-		try{
+		if (value == null)
+			return null;
+		try {
 			return type.cast(value);
-		}catch(Exception cce){
-			throw new SQLException("Value in column '"+columnIndex+"' is not of type "+type+" but is "+value.getClass());
+		} catch (Exception cce) {
+			throw new SQLException(
+					"Value in column '" + columnIndex + "' is not of type " + type + " but is " + value.getClass());
 		}
 	}
 
@@ -1366,40 +1440,46 @@ public class ESResultSet implements ResultSet {
 	}
 
 	/**
-	 * Comparator implementation used to sort Rows in the resultSet based on a {@link OrderBy} List
+	 * Comparator implementation used to sort Rows in the resultSet based on a
+	 * {@link OrderBy} List
+	 * 
 	 * @author cversloot
 	 *
 	 */
-	public static class ResultRowComparator implements Comparator<List<Object>>{
+	public static class ResultRowComparator implements Comparator<List<Object>> {
 
 		List<OrderBy> order;
-		
+
 		ResultRowComparator(List<OrderBy> order) {
 			this.order = order;
 		}
-		
+
 		@Override
 		public int compare(List<Object> rr1, List<Object> rr2) {
 			int res = 0;
-			for(OrderBy ob : order) try{
-				// order NULL values last
-				Object o1 = rr1.get(ob.getIndex());
-				if(o1 == null ) return ob.func();
-				Object o2 = rr2.get(ob.getIndex());
-				if(o2 == null )return ob.func() * -1;
-				
-				if(o1 instanceof String){
-					res = ((String)o1).compareTo((String)o2); 
-				}else if(o1 instanceof Number){
-					res = Double.compare(((Number) o1).doubleValue(), ((Number) o2).doubleValue());
+			for (OrderBy ob : order)
+				try {
+					// order NULL values last
+					Object o1 = rr1.get(ob.getIndex());
+					if (o1 == null)
+						return ob.func();
+					Object o2 = rr2.get(ob.getIndex());
+					if (o2 == null)
+						return ob.func() * -1;
+
+					if (o1 instanceof String) {
+						res = ((String) o1).compareTo((String) o2);
+					} else if (o1 instanceof Number) {
+						res = Double.compare(((Number) o1).doubleValue(), ((Number) o2).doubleValue());
+					}
+					if (res != 0)
+						return ob.func() * res;
+				} catch (Exception e) {
+					return 0;
 				}
-				if(res != 0) return ob.func() * res;
-			}catch(Exception e){
-				return 0;
-			}
 			return res;
 		}
-		
+
 	}
 
 	public ESResultSet setOffset(long offset) {
