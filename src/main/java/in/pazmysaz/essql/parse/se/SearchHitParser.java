@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.elasticsearch.common.text.Text;
 import org.elasticsearch.search.SearchHit;
@@ -44,6 +45,11 @@ public class SearchHitParser {
 	public ESResultSet parse(SearchHits hits, Statement statement, Heading head, long total, int rowLength, boolean useLateral, long offset, ESResultSet previous) throws SQLException{
 		Map<String, Heading> headMap = buildHeaders(head);
 		
+		/*headMap.forEach((k,v)->{
+			System.out.println("[Final Head Map] Key = "+k);
+			System.out.println("[Final Head Map]Value="+v);
+		});*/
+		
 		ESResultSet rs;
 		if(previous != null){
 			rs = previous;
@@ -78,31 +84,59 @@ public class SearchHitParser {
 	 * @param heading
 	 * @return
 	 */
-	public Map<String, Heading> buildHeaders( Heading heading ){
-		Map<String, Heading> headingIndex = new HashMap<String, Heading>();
-		for(int i=0; i<100; i++){
-			col: for(Column col : heading.columns()){
-				String[] parentAndKey = parentKey(col.getColumn(), i);
-				if(parentAndKey == null) continue;
-				Heading subH = headingIndex.get(parentAndKey[0]);
-				if(subH == null){
-					for(Map.Entry<String,Heading> entry : headingIndex.entrySet()){
-						if(parentAndKey[0].startsWith(entry.getKey()) && entry.getValue().hasAllCols()) continue col;
+	public Map<String, Heading> buildHeaders(Heading heading) {
+		//System.out.println("[buildHeaders] 1. Inbound Heading name=" + heading);
+		Map<String, Heading> headMap = new HashMap<String, Heading>();
+		for (int i = 0; i < 100; i++) {
+			
+			col: for (Column col : heading.columns()) {
+				String column = col.getColumn();
+				
+				String[] parentAndKey = parentKey(column, i);
+				if (parentAndKey == null)
+					continue;
+				String key = parentAndKey[0];
+				String label = parentAndKey[1];
+				
+				Heading newH = headMap.get(key);
+			
+				if (newH == null) 
+				{
+					newH = new Heading();
+					headMap.put(key, newH);
+					for (Map.Entry<String, Heading> entry : headMap.entrySet()) 
+					{
+						String key2 = entry.getKey();
+						Heading value2 = entry.getValue();
+						if (key.startsWith(key2) && value2.hasAllCols()) 
+						{
+							//System.out.println("[buildHeaders] BAILING OUT!, key="+key+", starts with ="+key2+", value2 has all cols="+value2.hasAllCols());
+							continue col;
+						}
 					}
-					subH = new Heading();
-					headingIndex.put(parentAndKey[0], subH);
+					
 				}
-				if(parentAndKey[1] == null) {
-					headingIndex.put(parentAndKey[0], new Heading().setAllColls(true));
-				}else if(!subH.hasLabel(parentAndKey[1]) && !subH.hasAllCols()){
-					subH.add(new Column(parentAndKey[1]));
+				
+				
+				if (label == null) 
+				{
+					newH = new Heading().setAllColls(true);
+					headMap.put(key, newH);
+				} else if (!newH.hasLabel(label) && !newH.hasAllCols()) 
+				{
+					newH.add(new Column(label));					
 				}
 			}
+		System.out.println("[buildHeaders] headMap=" + headMap+", on counter ="+i);
 		}
-		if(!headingIndex.containsKey("")) headingIndex.put("", new Heading().setAllColls(true));
-		if(heading.hasAllCols()) headingIndex.get("").setAllColls(true);
-		return headingIndex;
+		if (!headMap.containsKey(""))
+			headMap.put("", new Heading().setAllColls(true));
+		if (heading.hasAllCols())
+			headMap.get("").setAllColls(true);
+		return headMap;
 	}
+	
+	
 	
 	/**
 	 * Splits a name formatted like a.b.c into a parent 'a.b' and key 'c' for a given index (2 in this example)
@@ -132,39 +166,67 @@ public class SearchHitParser {
 	private void parse(Map<String, ?> source, Statement statement, SearchHit hit, ESResultSet rs, boolean explode, String parent, Map<String, Heading> headMap) throws SQLException{
 		Heading head = rs.getHeading();
 		List<Object> row = rs.getNewRow();
-		if(hit != null) addIdIndexAndType(hit.getId(), hit.getIndex(), hit.getType(), hit.getScore(), null/*hit.getHighlightFields()*/ , head, row);
-		if(source == null) return; // just return if source was not stored!
-		for(Map.Entry<String, ?> entry : source.entrySet()){
+		if(hit != null)
+			addIdIndexAndType(hit.getId(), hit.getIndex(), hit.getType(), hit.getScore(), null/*hit.getHighlightFields()*/ , head, row);
+		if(source == null) 
+			return; // just return if source was not stored!
+		for(Map.Entry<String, ?> entry : source.entrySet())
+		{
 			String key = entry.getKey();
 			String fullKey = parent.length()>0 ? parent+"."+ key : key;
 
-			if(!headMap.containsKey(fullKey) && !head.hasAllCols()) continue;
+			boolean containsFullKey = headMap.containsKey(fullKey);
+			boolean hasAllCols = head.hasAllCols();
+			System.out.println("[parse] fullKey="+fullKey+", contains full key="+containsFullKey+", hasAllCols="+hasAllCols);
+			if(!containsFullKey && !hasAllCols) {
+				System.err.println("Something is wrong, [parse] fullKey="+fullKey+" is absent in metadata");
+				AtomicBoolean deepPresent = new AtomicBoolean(false);
+				headMap.forEach((columnName, columnHeading)->{
+					System.out.println("[parse] manually deep checking column="+columnName+", for fullkey="+fullKey);
+					if(columnName.trim().toLowerCase().equals(fullKey.trim().toLowerCase())) {
+						System.out.println("[parse] fullKey="+fullKey+" is present with lower case and trim deep search");
+						deepPresent.set(true);
+					}
+				});
+				if(!deepPresent.get())
+				continue;
+			}
 			
-			if( entry.getValue() instanceof Map ){
+			if( entry.getValue() instanceof Map )
+			{
 				parseMapIntoResultSet(key, statement, head, row, explode, fullKey, headMap, (Map<String, ?>)entry.getValue());
-			}else if(entry.getValue() instanceof List) {
+			}else if(entry.getValue() instanceof List) 
+			{
 				List<Object> list = (List<Object>)entry.getValue();
-				if(list.size() > 0){
-					if(list.get(0) instanceof Map){
+				if(list.size() > 0)
+				{
+					if(list.get(0) instanceof Map)
+					{
 						parseMapIntoResultSet(key, statement, head, row, explode, fullKey, headMap, list.toArray());
-					}else{
-						if(head.hasLabel(key)){
+					}else
+					{
+						if(head.hasLabel(key))
+						{
 							Column s = head.getColumnByLabel(key);
 							s.setSqlType(Types.ARRAY);
 							row.set(s.getIndex(), new ESArray(list));
-						}else if(head.hasAllCols()){
+						}else if(hasAllCols)
+						{
 							Column newCol = new Column(key).setSqlType(Types.ARRAY);
 							head.add(newCol);
 							row.set(newCol.getIndex(), new ESArray(list));
 						}
 					}
-				}else{
+				}else
+				{
 					// add column if it does not exist yet and set value to null
-					if(head.hasAllCols() && !head.hasLabel(key)){
+					if(hasAllCols && !head.hasLabel(key))
+					{
 						head.add(new Column(key));
 					}
 				}
-			}else{
+			}else
+			{
 				addValueToRow(key, entry.getValue(), head, row);
 			}
 		}

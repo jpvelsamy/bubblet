@@ -284,9 +284,15 @@ public class Heading {
 	}
 	
 	public String toString(){
-		StringBuilder sb = new StringBuilder();
+		/*StringBuilder sb = new StringBuilder();
 		sb.append(" allvisible = "+allColumns+" [");
 		for(Column col : columns) sb.append(col.getLabel() +" ("+col.isVisible()+"), ");
+		sb.append("]");
+		return sb.toString();*/
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append("[");
+		for(Column col : columns) sb.append(col.getLabel()).append(", ");
 		sb.append("]");
 		return sb.toString();
 	}
