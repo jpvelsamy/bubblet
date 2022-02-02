@@ -177,14 +177,14 @@ public class SearchHitParser {
 
 			boolean containsFullKey = headMap.containsKey(fullKey);
 			boolean hasAllCols = head.hasAllCols();
-			System.out.println("[parse] fullKey="+fullKey+", contains full key="+containsFullKey+", hasAllCols="+hasAllCols);
+			//System.out.println("[parse] fullKey="+fullKey+", contains full key="+containsFullKey+", hasAllCols="+hasAllCols);
 			if(!containsFullKey && !hasAllCols) {
 				System.err.println("Something is wrong, [parse] fullKey="+fullKey+" is absent in metadata");
 				AtomicBoolean deepPresent = new AtomicBoolean(false);
 				headMap.forEach((columnName, columnHeading)->{
-					System.out.println("[parse] manually deep checking column="+columnName+", for fullkey="+fullKey);
+					//System.out.println("[parse] manually deep checking column="+columnName+", for fullkey="+fullKey);
 					if(columnName.trim().toLowerCase().equals(fullKey.trim().toLowerCase())) {
-						System.out.println("[parse] fullKey="+fullKey+" is present with lower case and trim deep search");
+						//System.out.println("[parse] fullKey="+fullKey+" is present with lower case and trim deep search");
 						deepPresent.set(true);
 					}
 				});

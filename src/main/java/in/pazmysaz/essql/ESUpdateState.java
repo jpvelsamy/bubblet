@@ -28,8 +28,8 @@ import org.elasticsearch.action.update.UpdateRequestBuilder;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.xcontent.XContentType;
 
 import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.facebook.presto.sql.parser.SqlParser;
